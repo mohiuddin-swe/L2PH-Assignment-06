@@ -1,0 +1,298 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  DROPPED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+enum ResultStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PAID
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum PaymentGateway {
+  STRIPE
+  SSLCOMMERZ
+}
+
+model User {
+  id           String       @id @default(uuid())
+  name         String
+  email        String       @unique
+  phone        String?
+  passwordHash String?
+  role         Role         @default(STUDENT)
+  status       UserStatus   @default(ACTIVE)
+  authProvider AuthProvider @default(LOCAL)
+  googleId     String?      @unique
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
+
+  studentProfile StudentProfile?
+  teacherProfile TeacherProfile?
+  refreshTokens  RefreshToken[]
+  offerings      CourseOffering[]
+  enrollments    Enrollment[]
+  invoices       FeeInvoice[]
+  payments       Payment[]
+  notices        Notice[]
+  auditLogs      AuditLog[]
+
+  @@index([role, status])
+  @@index([deletedAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Department {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  code      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  courses         Course[]
+  studentProfiles StudentProfile[]
+  teacherProfiles TeacherProfile[]
+
+  @@index([deletedAt])
+}
+
+model StudentProfile {
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  studentId    String  @unique
+  departmentId String?
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@index([departmentId])
+}
+
+model TeacherProfile {
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  designation  String?
+  departmentId String?
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@index([departmentId])
+}
+
+model Course {
+  id           String    @id @default(uuid())
+  code         String    @unique
+  title        String
+  description  String?
+  credit       Int       @default(3)
+  departmentId String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  department Department       @relation(fields: [departmentId], references: [id])
+  offerings  CourseOffering[]
+
+  @@index([departmentId])
+  @@index([deletedAt])
+}
+
+model CourseOffering {
+  id            String    @id @default(uuid())
+  courseId      String
+  teacherId     String
+  semester      String
+  section       String    @default("A")
+  capacity      Int
+  enrolledCount Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  course      Course       @relation(fields: [courseId], references: [id])
+  teacher     User         @relation(fields: [teacherId], references: [id])
+  enrollments Enrollment[]
+
+  @@unique([courseId, semester, section])
+  @@index([teacherId])
+  @@index([semester])
+  @@index([deletedAt])
+}
+
+model Enrollment {
+  id         String           @id @default(uuid())
+  studentId  String
+  offeringId String
+  status     EnrollmentStatus @default(ENROLLED)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  student     User           @relation(fields: [studentId], references: [id])
+  offering    CourseOffering @relation(fields: [offeringId], references: [id])
+  attendances Attendance[]
+  result      Result?
+
+  @@unique([studentId, offeringId])
+  @@index([offeringId])
+  @@index([status])
+}
+
+model Attendance {
+  id           String           @id @default(uuid())
+  enrollmentId String
+  date         DateTime         @db.Date
+  status       AttendanceStatus
+  createdAt    DateTime         @default(now())
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+
+  @@unique([enrollmentId, date])
+}
+
+model Result {
+  id           String       @id @default(uuid())
+  enrollmentId String       @unique
+  marks        Float
+  grade        String?
+  gradePoint   Float?
+  status       ResultStatus @default(DRAFT)
+  publishedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+
+  @@index([status])
+}
+
+model FeeInvoice {
+  id        String        @id @default(uuid())
+  studentId String
+  title     String
+  semester  String?
+  amount    Decimal       @db.Decimal(10, 2)
+  currency  String        @default("BDT")
+  status    InvoiceStatus @default(UNPAID)
+  dueDate   DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?
+
+  student  User      @relation(fields: [studentId], references: [id])
+  payments Payment[]
+
+  @@index([studentId, status])
+  @@index([deletedAt])
+}
+
+model Payment {
+  id            String         @id @default(uuid())
+  invoiceId     String
+  userId        String
+  gateway       PaymentGateway
+  transactionId String?        @unique
+  amount        Decimal        @db.Decimal(10, 2)
+  currency      String         @default("BDT")
+  status        PaymentStatus  @default(PENDING)
+  rawPayload    Json?
+  paidAt        DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  invoice FeeInvoice @relation(fields: [invoiceId], references: [id])
+  user    User       @relation(fields: [userId], references: [id])
+
+  @@index([invoiceId])
+  @@index([userId, status])
+}
+
+model Notice {
+  id        String    @id @default(uuid())
+  title     String
+  content   String
+  authorId  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
