@@ -107,12 +107,19 @@ const settle = async (body: CallbackBody, ip?: string) => {
 
   // Server-to-server check with the gateway. A forged callback has no valid val_id and stops here.
   const check = await validatePayment(valId);
-  const paidAmount = new Prisma.Decimal(String(check.currency_amount ?? check.amount ?? "0"));
-  const valid =
-    (check.status === "VALID" || check.status === "VALIDATED") &&
-    check.tran_id === payment.transactionId &&
-    paidAmount.equals(payment.amount);
-  if (!valid) throw new AppError(400, "Payment could not be verified with the gateway");
+  const statusOk = check.status === "VALID" || check.status === "VALIDATED";
+  if (!statusOk || check.tran_id !== payment.transactionId) {
+    throw new AppError(400, "Payment could not be verified with the gateway");
+  }
+
+  // The gateway reply is external data: parse the amount defensively so garbage can never become a 500.
+  let amountMatches = false;
+  try {
+    amountMatches = new Prisma.Decimal(String(check.currency_amount ?? check.amount ?? "")).equals(payment.amount);
+  } catch {
+    amountMatches = false;
+  }
+  if (!amountMatches) throw new AppError(400, "Payment could not be verified with the gateway");
 
   const done = await prisma.$transaction(async (tx) => {
     const { count } = await tx.payment.updateMany({
