@@ -13,6 +13,11 @@ const schema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CALLBACK_URL: z.string().optional(),
+    // Public URL of THIS API. The payment gateway redirects the browser back here.
+  APP_BASE_URL: z.string().default("http://localhost:5001"),
+  SSLCOMMERZ_STORE_ID: z.string().optional(),
+  SSLCOMMERZ_STORE_PASSWORD: z.string().optional(),
+  SSLCOMMERZ_IS_LIVE: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
 });
 
 const parsed = schema.safeParse(process.env);
