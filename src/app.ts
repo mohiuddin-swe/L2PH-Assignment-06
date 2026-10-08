@@ -7,6 +7,7 @@ import { AppError } from "./errors/AppError";
 import { errorHandler } from "./middlewares/errorHandler";
 import { notFound } from "./middlewares/notFound";
 import { globalLimiter } from "./middlewares/rateLimit";
+import { docsRoutes } from "./docs/docs.route";
 import routes from "./routes";
 import { paymentCallbackRoutes } from "./modules/payment/payment.route";
 
@@ -14,7 +15,8 @@ const app = express();
 
 // Needed behind Render/Vercel proxies so rate limiting and secure cookies see the real client.
 app.set("trust proxy", 1);
-
+// Swagger UI is served before helmet: helmet's "upgrade-insecure-requests" CSP breaks http://localhost in Safari.
+app.use("/api/v1/docs", docsRoutes);
 app.use(helmet());
 // Payment gateway callbacks arrive as form posts from the gateway's own domain, so they are mounted
 // BEFORE the CORS check. They are safe because every callback is verified server-to-server.
