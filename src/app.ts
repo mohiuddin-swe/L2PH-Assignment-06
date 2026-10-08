@@ -8,6 +8,7 @@ import { errorHandler } from "./middlewares/errorHandler";
 import { notFound } from "./middlewares/notFound";
 import { globalLimiter } from "./middlewares/rateLimit";
 import routes from "./routes";
+import { paymentCallbackRoutes } from "./modules/payment/payment.route";
 
 const app = express();
 
@@ -15,6 +16,9 @@ const app = express();
 app.set("trust proxy", 1);
 
 app.use(helmet());
+// Payment gateway callbacks arrive as form posts from the gateway's own domain, so they are mounted
+// BEFORE the CORS check. They are safe because every callback is verified server-to-server.
+app.use("/api/v1/payments/gateway", globalLimiter, express.urlencoded({ extended: false }), paymentCallbackRoutes);
 
 const allowedOrigins = env.CORS_ORIGINS.split(",")
   .map((o) => o.trim())

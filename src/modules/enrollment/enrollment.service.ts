@@ -1,4 +1,4 @@
-import { EnrollmentStatus, Prisma, ResultStatus, Role } from "@prisma/client";
+import { EnrollmentStatus, InvoiceStatus, Prisma, ResultStatus, Role } from "@prisma/client";
 import { AppError } from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
 import { logActivity } from "../../utils/audit";
@@ -31,6 +31,16 @@ const enroll = async (studentId: string, offeringId: string, ip?: string) => {
         select: { id: true, semester: true, courseId: true, course: { select: { credit: true } } },
       });
       if (!offering) throw new AppError(404, "Course offering not found");
+
+
+      // Fee rule: an unpaid fee invoice for this semester blocks enrollment until it is paid.
+      const unpaid = await tx.feeInvoice.findFirst({
+        where: { studentId, semester: offering.semester, status: InvoiceStatus.UNPAID, deletedAt: null },
+        select: { title: true },
+      });
+      if (unpaid) {
+        throw new AppError(402, `Please pay your fee invoice "${unpaid.title}" before enrolling in ${offering.semester} courses`);
+      }
 
       const existing = await tx.enrollment.findUnique({
         where: { studentId_offeringId: { studentId, offeringId } },
