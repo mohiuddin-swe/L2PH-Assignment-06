@@ -7,11 +7,13 @@ import { courseRoutes } from "../modules/course/course.route";
 import { departmentRoutes } from "../modules/department/department.route";
 import { enrollmentRoutes, offeringEnrollmentRoutes } from "../modules/enrollment/enrollment.route";
 import { invoiceRoutes } from "../modules/invoice/invoice.route";
+import { noticeRoutes } from "../modules/notice/notice.route";
 import { offeringRoutes } from "../modules/offering/offering.route";
 import { paymentRoutes } from "../modules/payment/payment.route";
 import { resultRoutes } from "../modules/result/result.route";
 import { userRoutes } from "../modules/user/user.route";
 import { sendResponse } from "../utils/sendResponse";
+
 
 const router = Router();
 
@@ -31,6 +33,7 @@ router.use("/attendance", attendanceRoutes);
 router.use("/results", resultRoutes);
 router.use("/invoices", invoiceRoutes);
 router.use("/payments", paymentRoutes);
+router.use("/notices", noticeRoutes);
 router.use("/admin", adminRoutes);
 
 export default router;
