@@ -1,11 +1,13 @@
 import { Router } from "express";
 import { authLimiter } from "../middlewares/rateLimit";
 import { adminRoutes } from "../modules/admin/admin.route";
+import { attendanceRoutes } from "../modules/attendance/attendance.route";
 import { authRoutes } from "../modules/auth/auth.route";
 import { courseRoutes } from "../modules/course/course.route";
 import { departmentRoutes } from "../modules/department/department.route";
 import { enrollmentRoutes, offeringEnrollmentRoutes } from "../modules/enrollment/enrollment.route";
 import { offeringRoutes } from "../modules/offering/offering.route";
+import { resultRoutes } from "../modules/result/result.route";
 import { userRoutes } from "../modules/user/user.route";
 import { sendResponse } from "../utils/sendResponse";
 
@@ -23,6 +25,8 @@ router.use("/courses", courseRoutes);
 router.use("/offerings/:id/enrollments", offeringEnrollmentRoutes);
 router.use("/offerings", offeringRoutes);
 router.use("/enrollments", enrollmentRoutes);
+router.use("/attendance", attendanceRoutes);
+router.use("/results", resultRoutes);
 router.use("/admin", adminRoutes);
 
 export default router;
